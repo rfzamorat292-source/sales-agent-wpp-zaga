@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel del agente</title>
+<style>
+  :root { --bg:#f6f7f5; --panel:#fff; --tx:#1c2321; --mut:#667370; --bd:#d9dedb; --ac:#0f7a5a; --ac-tx:#fff; --err:#b3261e; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#131816; --panel:#1c2321; --tx:#e7ecea; --mut:#98a5a1; --bd:#33403c; --ac:#35b890; --ac-tx:#08110e; --err:#ff8a80; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--tx); font:15px/1.5 system-ui, sans-serif; }
+  header { padding:14px 16px 0; max-width:1000px; margin:auto; }
+  h1 { font-size:18px; margin:0 0 10px; }
+  nav { display:flex; gap:4px; overflow-x:auto; border-bottom:1px solid var(--bd); }
+  nav button { background:none; border:0; border-bottom:2px solid transparent; color:var(--mut); padding:8px 12px; font:inherit; cursor:pointer; white-space:nowrap; }
+  nav button[aria-selected=true] { color:var(--tx); border-color:var(--ac); font-weight:600; }
+  main { max-width:1000px; margin:auto; padding:16px; }
+  p.ayuda { color:var(--mut); margin:0 0 10px; }
+  textarea { width:100%; height:60vh; background:var(--panel); color:var(--tx); border:1px solid var(--bd); border-radius:8px; padding:12px; font:13px/1.5 ui-monospace, Menlo, monospace; tab-size:2; white-space:pre; }
+  .fila { display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap; }
+  button.ok, .fila input { font:inherit; border-radius:8px; padding:8px 14px; border:1px solid var(--bd); }
+  button.ok { background:var(--ac); color:var(--ac-tx); border-color:var(--ac); font-weight:600; cursor:pointer; }
+  .fila input { background:var(--panel); color:var(--tx); flex:1; min-width:120px; }
+  #msg { color:var(--mut); } #msg.err { color:var(--err); }
+  .tabla { overflow-x:auto; background:var(--panel); border:1px solid var(--bd); border-radius:8px; }
+  table { border-collapse:collapse; width:100%; font-size:14px; }
+  th, td { text-align:left; padding:8px 12px; border-bottom:1px solid var(--bd); vertical-align:top; }
+  th { color:var(--mut); font-weight:600; } td.n { text-align:right; font-variant-numeric:tabular-nums; }
+  #chat { background:var(--panel); border:1px solid var(--bd); border-radius:8px; padding:12px; height:50vh; overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
+  #chat div { max-width:80%; padding:8px 12px; border-radius:12px; white-space:pre-wrap; overflow-wrap:anywhere; background:var(--bg); }
+  #chat div.yo { align-self:flex-end; background:var(--ac); color:var(--ac-tx); }
+</style>
+</head>
+<body>
+<header><h1>Agente de ventas por WhatsApp</h1><nav id="nav"></nav></header>
+<main>
+  <p class="ayuda" id="ayuda"></p>
+  <div id="editor"><textarea id="txt" spellcheck="false"></textarea>
+    <div class="fila"><button class="ok" id="guardar">Guardar</button></div></div>
+  <div id="vista" class="tabla"></div>
+  <div id="prueba">
+    <div id="chat"></div>
+    <div class="fila"><input id="tel" placeholder="Teléfono de prueba" value="0000" style="flex:0 0 170px">
+      <input id="entrada" placeholder="Escribe como si fueras el cliente…"><button class="ok" id="enviar">Enviar</button></div>
+  </div>
+  <div class="fila"><span id="msg" role="status"></span></div>
+</main>
+<script>
+const TABS = {
+  config:    ['Configuración', 'Negocio, instrucciones, pasos de venta, datos del pedido, pagos y parámetros del modelo. Se aplica al guardar.'],
+  productos: ['Productos', 'CSV: sku, nombre, descripcion, categoria, compatibilidad (marca, modelo, año, posición; ej. "Volvo FH 440 delantero"), stock, activo. Guardar agrega o actualiza por sku; para ocultar un producto usa activo = 0.'],
+  precios:   ['Precios', 'CSV: sku, lista, precio. Un precio por lista (general, mayorista…). Si un producto no tiene precio en la lista del cliente se usa la lista por defecto. Precio vacío = quitar.'],
+  clientes:  ['Clientes', 'CSV: telefono (con código de país, solo dígitos), nombre, lista de precios, bot_pausado (1 = atiende una persona). Los clientes nuevos se registran solos.'],
+  pedidos:   ['Pedidos', 'Últimos 100 pedidos. Usa "Responder" para escribir al cliente por WhatsApp y actualizar el estado.'],
+  uso:       ['Consumo', 'Tokens por día. "Caché" son tokens de entrada leídos de caché (más baratos).'],
+  probar:    ['Probar', 'Conversa con el agente sin WhatsApp. Usa el teléfono de un cliente para ver sus precios. Los pedidos de prueba sí se registran y descuentan stock.'],
+};
+const $ = (id) => document.getElementById(id);
+let actual;
+
+const token = () => sessionStorage.tok || (sessionStorage.tok = prompt('Token de administrador') || '');
+async function api(ruta, opc = {}) {
+  const r = await fetch('/admin/api/' + ruta, { ...opc, headers: { 'x-admin-token': token() } });
+  const t = await r.text();
+  if (r.status === 401) { sessionStorage.removeItem('tok'); throw new Error('Token inválido. Recarga la página.'); }
+  if (!r.ok) throw new Error(t);
+  return t;
+}
+function aviso(t, err) { $('msg').textContent = t; $('msg').className = err ? 'err' : ''; }
+
+function tabla(cols, filas) {
+  const t = document.createElement('table'), h = t.insertRow();
+  for (const [titulo] of cols) h.appendChild(document.createElement('th')).textContent = titulo;
+  for (const f of filas) { const tr = t.insertRow();
+    for (const [, fn, num] of cols) { const td = tr.insertCell(); const v = fn(f); if (v instanceof Node) td.append(v); else td.textContent = v; if (num) td.className = 'n'; } }
+  $('vista').replaceChildren(filas.length ? t : Object.assign(document.createElement('p'), { textContent: 'Sin datos todavía.', style: 'padding:12px;margin:0' }));
+}
+
+async function abrir(tab) {
+  actual = tab; aviso('');
+  for (const b of $('nav').children) b.setAttribute('aria-selected', b.dataset.tab === tab);
+  $('ayuda').textContent = TABS[tab][1];
+  const editable = ['config', 'productos', 'precios', 'clientes'].includes(tab);
+  $('editor').hidden = !editable; $('prueba').hidden = tab !== 'probar';
+  $('vista').hidden = !['pedidos', 'uso'].includes(tab);
+  try {
+    if (editable) $('txt').value = await api('texto/' + tab);
+    if (tab === 'pedidos') tabla([
+      ['#', (p) => p.id], ['Fecha', (p) => new Date(p.ts).toLocaleString()], ['Teléfono', (p) => '+' + p.telefono],
+      ['Productos', (p) => p.items.map((i) => `${i.cantidad} x ${i.nombre}`).join(', ')],
+      ['Datos', (p) => Object.entries(p.datos).map(([k, v]) => `${k}: ${v}`).join(' · ')],
+      ['Total', (p) => p.total.toFixed(2), 1], ['Estado', (p) => p.estado],
+      ['', (p) => Object.assign(document.createElement('button'), { className: 'ok', textContent: 'Responder', onclick: () => responder(p) })]],
+      JSON.parse(await api('pedidos')));
+    if (tab === 'uso') tabla([
+      ['Día', (u) => u.dia], ['Turnos', (u) => u.turnos, 1], ['Llamadas', (u) => u.llamadas, 1],
+      ['Entrada', (u) => u.entrada, 1], ['Caché', (u) => u.cache_lectura, 1], ['Salida', (u) => u.salida, 1]], JSON.parse(await api('uso')));
+  } catch (e) { aviso(e.message, true); }
+}
+
+async function responder(p) {
+  const texto = prompt(`Mensaje para +${p.telefono} (vacío = solo cambiar estado):`); if (texto === null) return;
+  const estado = prompt('Estado del pedido:', p.estado); if (estado === null) return;
+  try { aviso(await api('responder', { method: 'POST', body: JSON.stringify({ telefono: p.telefono, texto, pedido: p.id, estado }) })); abrir('pedidos'); }
+  catch (e) { aviso(e.message, true); }
+}
+$('guardar').onclick = async () => {
+  try { aviso(await api('texto/' + actual, { method: 'PUT', body: $('txt').value })); if (actual !== 'config') abrir(actual); }
+  catch (e) { aviso(e.message, true); }
+};
+function burbuja(t, yo) { const d = document.createElement('div'); d.textContent = t; if (yo) d.className = 'yo'; $('chat').append(d); $('chat').scrollTop = 1e9; return d; }
+async function enviar() {
+  const texto = $('entrada').value.trim(); if (!texto) return;
+  $('entrada').value = ''; burbuja(texto, true); const b = burbuja('…');
+  try { b.textContent = await api('probar', { method: 'POST', body: JSON.stringify({ telefono: $('tel').value, texto }) }); }
+  catch (e) { b.textContent = '⚠ ' + e.message; }
+}
+$('enviar').onclick = enviar;
+$('entrada').onkeydown = (e) => { if (e.key === 'Enter') enviar(); };
+
+for (const [id, [titulo]] of Object.entries(TABS)) {
+  const b = document.createElement('button'); b.textContent = titulo; b.dataset.tab = id; b.onclick = () => abrir(id); $('nav').append(b);
+}
+abrir('config');
+</script>
+</body>
+</html>

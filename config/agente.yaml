@@ -1,0 +1,82 @@
+# Configuración del agente de ventas. Editable desde /admin (pestaña Configuración).
+# Los cambios se aplican al guardar, sin reiniciar.
+
+negocio:
+  nombre: "Mi Negocio"
+  moneda: "$"
+  horario: "Lunes a sábado, 9:00 a 18:00"
+  zona_horaria: "America/Mexico_City"
+
+# Personalidad y reglas del negocio (texto libre).
+agente:
+  instrucciones: |
+    Atiendes con trato cercano y profesional, en mensajes cortos.
+    Si el cliente no sabe qué quiere, haz una sola pregunta para orientarlo.
+    Ofrece como máximo 3 opciones a la vez.
+    No des descuentos ni condiciones que no estén en el sistema.
+
+# Pasos del proceso de venta (texto libre; el agente los sigue en orden).
+flujo:
+  pasos: |
+    1. Saluda y pregunta qué busca (solo en el primer mensaje).
+    2. Busca en el catálogo y presenta opciones con precio.
+    3. Agrega al carrito lo que el cliente elija y pregunta si desea algo más.
+    4. Pide los datos del pedido que falten.
+    5. Muestra el resumen (productos, total, entrega, pago) y pide confirmación.
+    6. Con el "sí" del cliente, registra el pedido y envía las instrucciones de pago.
+
+pedido:
+  # Datos que el agente debe reunir antes de registrar el pedido.
+  # requerido: true | false, o requerido_si: {otro_campo: valor}
+  campos:
+    - clave: nombre
+      descripcion: "Nombre de quien recibe"
+      requerido: true
+    - clave: entrega
+      descripcion: "Forma de entrega"
+      opciones: [envio, recojo]
+      requerido: true
+    - clave: direccion
+      descripcion: "Dirección completa de envío"
+      requerido_si: { entrega: envio }
+    - clave: pago
+      descripcion: "Método de pago"
+      opciones: [transferencia, efectivo]
+      requerido: true
+    - clave: notas
+      descripcion: "Indicaciones adicionales del cliente"
+  # Texto que se entrega al cliente según el método de pago elegido.
+  instrucciones_pago:
+    transferencia: "Transferencia a la cuenta 0000-0000-0000 (Mi Negocio). Envía tu comprobante por este chat."
+    efectivo: "Pagas en efectivo al recibir tu pedido."
+  minimo: 0            # monto mínimo del pedido
+  validar_stock: true  # impedir pedidos sin stock y descontarlo al confirmar
+  notificar_a: ""      # WhatsApp del negocio que recibe cada pedido (solo dígitos, con código de país)
+
+derivacion:
+  pausa_horas: 12      # horas que el bot calla en ese chat tras derivar a una persona
+  notificar_a: ""      # WhatsApp que recibe el aviso de derivación
+
+# Avisos al negocio (pedidos y derivaciones). Sin plantilla solo llegan si ese número escribió al bot en las últimas 24 h.
+# Con plantilla: créala en Meta (categoría Utilidad) con un cuerpo como "Aviso del asistente: {{1}}" y pon su nombre aquí.
+avisos:
+  plantilla: ""        # nombre de la plantilla aprobada; vacío = texto normal
+  idioma: es           # código de idioma de la plantilla (es, es_PE, …)
+
+precios:
+  lista_por_defecto: general   # lista para clientes sin lista asignada
+
+mensajes:
+  no_texto: "Por ahora solo puedo leer texto e imágenes. ¿Me escribes lo que necesitas?"
+  error: "Tuvimos un inconveniente técnico. Intenta de nuevo en unos minutos, por favor."
+
+# Parámetros técnicos (afectan costo y velocidad).
+modelo:
+  id: claude-haiku-5-5
+  esfuerzo: low            # low | medium | high
+  max_tokens: 2000         # tope de salida por llamada
+  max_pasos: 6             # llamadas máximas al modelo por mensaje del cliente
+  historial_mensajes: 12   # mensajes previos que se reenvían como contexto
+  sesion_horas: 24         # pasado este tiempo sin actividad, la conversación empieza de cero
+  agrupar_ms: 3000         # espera para juntar mensajes seguidos en una sola consulta
+  max_resultados: 5        # productos devueltos por búsqueda
