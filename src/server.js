@@ -54,6 +54,8 @@ async function procesar(telefono, texto, nombre, ids = []) {
 }
 
 function recibir(body) {
+  for (const e of body?.entry ?? []) for (const ch of e.changes ?? []) for (const s of ch.value?.statuses ?? [])
+    if (s.status === 'failed') console.error('[entrega fallida]', s.recipient_id, s.errors?.map((x) => `${x.code} ${x.title}: ${x.error_data?.details ?? x.message ?? ''}`).join(' | '));
   for (const m of wa.extraerMensajes(body)) {
     if (db.yaProcesado(m.id)) continue; // Meta reintenta entregas
     wa.marcarLeido(m.id).catch(() => {});
