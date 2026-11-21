@@ -63,21 +63,21 @@ const SEL = `SELECT p.sku, p.nombre, p.descripcion, p.categoria, p.compatibilida
 const JOIN = `LEFT JOIN precios a ON a.sku = p.sku AND a.lista = ? LEFT JOIN precios g ON g.sku = p.sku AND g.lista = ?`;
 const VIS = `p.activo = 1 AND COALESCE(a.precio, g.precio) IS NOT NULL`;
 
-export function buscar(consulta, lista, listaDef, limite) {
+export function buscar(consulta, lista, listaDef, limite, soloStock = false) {
   const tokens = (consulta.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').match(/[a-z0-9]+/g) || [])
     .filter((t) => t.length > 1)
     .map((t) => (t.length > 4 ? t.replace(/(es|s)$/, '') : t)); // plural -> raíz
   if (!tokens.length) return [];
   const sql = q(`${SEL} FROM productos_fts JOIN productos p ON p.sku = productos_fts.sku ${JOIN}
-    WHERE productos_fts MATCH ? AND ${VIS} ORDER BY rank LIMIT ?`);
+    WHERE productos_fts MATCH ? AND ${VIS}${soloStock ? ' AND p.stock > 0' : ''} ORDER BY rank LIMIT ?`);
   const terminos = tokens.map((t) => `"${t}"*`);
   const r = sql.all(lista, listaDef, terminos.join(' '), limite);
   return r.length || tokens.length === 1 ? r : sql.all(lista, listaDef, terminos.join(' OR '), limite);
 }
 export const producto = (sku, lista, listaDef) =>
   q(`${SEL} FROM productos p ${JOIN} WHERE ${VIS} AND p.sku = ? COLLATE NOCASE`).get(lista, listaDef, sku);
-export const categorias = () =>
-  q("SELECT DISTINCT categoria c FROM productos WHERE activo = 1 AND COALESCE(categoria, '') <> '' ORDER BY 1").all().map((f) => f.c);
+export const categorias = (soloStock = false) =>
+  q(`SELECT DISTINCT categoria c FROM productos WHERE activo = 1${soloStock ? ' AND stock > 0' : ''} AND COALESCE(categoria, '') <> '' ORDER BY 1`).all().map((f) => f.c);
 
 // ---- Carrito y pedidos ----
 export function carrito(telefono, lista, listaDef) {
