@@ -24,4 +24,8 @@ db.importar('productos', [{ sku: 'P-281-01A', nombre: 'Muelle parabólico 100x32
 assert.equal(db.buscar('volvo fh delantero', 'general', 'general', 5).length, 0); // sin precio no se muestra
 db.importar('precios', [{ sku: 'P-281-01A', lista: 'general', precio: '900' }]);
 assert.match(await ejecutar('buscar_productos', { consulta: 'muelle volvo fh 440' }, normal), /P-281-01A.*compatible: Volvo/);
+db.importar('productos', [{ sku: 'SIN-1', nombre: 'Agotadito', categoria: 'Agotados', stock: '0' }]);
+db.importar('precios', [{ sku: 'SIN-1', lista: 'general', precio: '5' }]);
+assert.doesNotMatch(await ejecutar('buscar_productos', { consulta: 'agotadito' }, normal), /SIN-1/); // sin stock no se ofrece
+assert.ok(!db.categorias(true).includes('Agotados'));
 console.log('OK');

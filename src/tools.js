@@ -44,8 +44,8 @@ export async function ejecutar(nombre, input, ctx) {
   const { cfg, telefono, lista, listaDef } = ctx;
   switch (nombre) {
     case 'buscar_productos': {
-      const r = db.buscar(String(input.consulta || ''), lista, listaDef, cfg.modelo.max_resultados);
-      if (!r.length) return `Sin resultados. Categorías: ${db.categorias().join(', ') || 'ninguna'}.`;
+      const r = db.buscar(String(input.consulta || ''), lista, listaDef, cfg.modelo.max_resultados, cfg.pedido.validar_stock);
+      if (!r.length) return `Sin resultados. Categorías: ${db.categorias(cfg.pedido.validar_stock).join(', ') || 'ninguna'}.`;
       return r.map((p) => `${p.sku} | ${p.nombre} | ${dinero(cfg, p.precio)} | stock ${p.stock}` +
         (p.compatibilidad ? ` | compatible: ${p.compatibilidad.slice(0, 150)}` : '') +
         (p.descripcion ? ` | ${p.descripcion.slice(0, 100)}` : '')).join('\n');
