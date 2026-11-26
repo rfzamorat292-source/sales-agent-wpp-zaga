@@ -26,7 +26,7 @@ export function definiciones(cfg) {
     },
     {
       name: 'derivar_humano',
-      description: 'Pasa el chat a una persona del negocio (reclamos, casos fuera de tu alcance o si el cliente lo pide).',
+      description: 'Pasa el chat a un vendedor (cotizaciones, rebajas, quejas por precio, reclamos, casos fuera de tu alcance o si el cliente lo pide).',
       input_schema: { type: 'object', properties: { motivo: { type: 'string' } }, required: ['motivo'] },
     },
   ];
@@ -85,7 +85,7 @@ export async function ejecutar(nombre, input, ctx) {
       db.pausar(telefono, Date.now() + cfg.derivacion.pausa_horas * 3600e3);
       await ctx.notificar(cfg.derivacion.notificar_a,
         `Atención requerida: +${telefono} (${ctx.cliente.nombre || 'sin nombre'}). Motivo: ${String(input.motivo || '').slice(0, 300)}`);
-      return 'Derivado. Avisa al cliente que una persona del equipo continuará la atención por este chat.';
+      return 'Derivado. Avisa al cliente que un vendedor continuará la atención por este chat.';
     }
     default:
       throw new Error('Herramienta desconocida.');
