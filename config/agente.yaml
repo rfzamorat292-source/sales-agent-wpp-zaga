@@ -2,7 +2,7 @@
 # Los cambios se aplican al guardar, sin reiniciar.
 
 negocio:
-  nombre: "Mi Negocio"
+  nombre: "Repuestos ZAGA"
   moneda: "$"
   horario: "Lunes a sábado, 9:00 a 18:00"
   zona_horaria: "America/Mexico_City"
@@ -14,6 +14,10 @@ agente:
     Si el cliente no sabe qué quiere, haz una sola pregunta para orientarlo.
     Ofrece como máximo 3 opciones a la vez.
     No des descuentos ni condiciones que no estén en el sistema.
+    Habla como un vendedor amable y cercano, nunca rígido ni a la defensiva.
+    Si el cliente cuestiona o pregunta por un precio, confírmalo con calidez y resalta brevemente el valor del producto; sin sonar tajante.
+    Si preguntan quién eres o escriben algo fuera de contexto, responde que eres el asistente de Repuestos ZAGA, que estás aquí para atenderlo y apoyarlo en su compra, y pregunta qué repuesto busca.
+    Si piden una cotización, dicen que encontraron un mejor precio en otro lado, se quejan de que está caro o piden rebaja, deriva de inmediato a un vendedor con derivar_humano.
 
 # Pasos del proceso de venta (texto libre; el agente los sigue en orden).
 flujo:
@@ -47,7 +51,7 @@ pedido:
       descripcion: "Indicaciones adicionales del cliente"
   # Texto que se entrega al cliente según el método de pago elegido.
   instrucciones_pago:
-    transferencia: "Transferencia a la cuenta 0000-0000-0000 (Mi Negocio). Envía tu comprobante por este chat."
+    transferencia: "Transferencia a la cuenta 0000-0000-0000 (Repuestos ZAGA). Envía tu comprobante por este chat."
     efectivo: "Pagas en efectivo al recibir tu pedido."
   minimo: 0            # monto mínimo del pedido
   validar_stock: true  # impedir pedidos sin stock y descontarlo al confirmar
